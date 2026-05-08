@@ -1,0 +1,20 @@
+[Unit]
+Description=抖音直播录音系统 - 智慧的大聪明
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/workspace/dy-live-recorder
+ExecStart=/usr/bin/python3 /workspace/dy-live-recorder/dy_monitor.py -c /workspace/dy-live-recorder/config.yaml
+Restart=always
+RestartSec=10
+
+StandardOutput=append:/workspace/dy-live-recorder/dy_monitor.log
+StandardError=append:/workspace/dy-live-recorder/dy_monitor.error.log
+
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
