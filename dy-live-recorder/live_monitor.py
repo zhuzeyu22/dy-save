@@ -18,10 +18,27 @@ class LiveMonitor:
         self.douyin = DouyinAPI(config.get("douyin", {}).get("cookie", ""))
 
         room_url = config.get("douyin", {}).get("room_url", "")
-        self.room_id = room_url if room_url.isdigit() else self.douyin.get_room_id_from_url(room_url)
-
-        if not self.room_id:
-            raise ValueError("无法获取房间ID，请检查配置")
+        self.unique_id = None
+        
+        if room_url:
+            if room_url.isdigit():
+                self.room_id = room_url
+                logger.info(f"使用房间号: {self.room_id}")
+            else:
+                self.room_id = self.douyin.get_room_id_from_url(room_url)
+                if not self.room_id:
+                    import re
+                    match = re.search(r'/([a-zA-Z0-9_]+)/?', room_url.split('live.douyin.com')[-1] if 'live.douyin.com' in room_url else room_url)
+                    if match:
+                        self.unique_id = match.group(1).strip('/')
+                        logger.info(f"未获取到房间号，使用抖音号监控: {self.unique_id}")
+                        self.room_id = None
+                    else:
+                        raise ValueError("无法解析房间URL，请检查配置")
+                else:
+                    logger.info(f"获取到房间号: {self.room_id}")
+        else:
+            raise ValueError("room_url未配置")
 
         self.check_interval = config.get("douyin", {}).get("check_interval", 300)
         self.username = config.get("douyin", {}).get("username", "")
@@ -33,6 +50,13 @@ class LiveMonitor:
         self._live_start_time: Optional[datetime] = None
         self._running = False
 
+    def _get_room_id_for_user(self) -> Optional[str]:
+        if self.unique_id:
+            user_info = self.douyin.get_user_by_unique_id(self.unique_id)
+            if user_info and user_info.get("room_id"):
+                return str(user_info["room_id"])
+        return None
+
     @property
     def is_live(self) -> bool:
         return self._is_live
@@ -43,20 +67,37 @@ class LiveMonitor:
 
     def check_live_status(self) -> dict:
         try:
-            status = self.douyin.get_live_status(self.room_id)
+            room_id = self.room_id
+            if not room_id and self.unique_id:
+                room_id = self._get_room_id_for_user()
+                if room_id:
+                    logger.info(f"通过抖音号获取到房间号: {room_id}")
+            
+            if not room_id:
+                logger.warning("无法获取房间号，等待下次检测...")
+                return {"is_live": False, "room_id": None, "stream_url": None, "waiting_for_room": True}
+            
+            status = self.douyin.get_live_status(room_id)
+            status["waiting_for_room"] = False
             return status
         except Exception as e:
             logger.error(f"检查直播状态失败: {e}")
             return {"is_live": False, "error": str(e)}
 
     def start_monitoring(self):
-        logger.info(f"开始监控主播: {self.username} (房间号: {self.room_id})")
+        monitor_target = self.username or self.unique_id or self.room_id or "未知主播"
+        logger.info(f"开始监控主播: {monitor_target}")
         logger.info(f"检测间隔: {self.check_interval} 秒")
+        if self.unique_id:
+            logger.info(f"监控方式: 通过抖音号 '{self.unique_id}' 检测")
         self._running = True
 
         while self._running:
             try:
                 status = self.check_live_status()
+
+                if status.get("waiting_for_room"):
+                    logger.info("💤 主播未开播，持续监控中...")
 
                 if status.get("is_live"):
                     if not self._is_live:
