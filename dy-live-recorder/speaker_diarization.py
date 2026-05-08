@@ -10,10 +10,18 @@ import logging
 from typing import List, Dict, Optional, Union
 from pathlib import Path
 from collections import defaultdict
-import torch
 
-from pyannote.audio import Pipeline
-from pyannote.core import Segment, Annotation
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    from pyannote.audio import Pipeline
+    from pyannote.core import Segment, Annotation
+    PYANNOTE_AVAILABLE = True
+except ImportError:
+    PYANNOTE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +43,17 @@ class SpeakerDiarization:
                 - cache_dir: 模型缓存目录，默认 ~/.cache/huggingface
                 - hf_token: HuggingFace 访问令牌
         """
+        if not PYANNOTE_AVAILABLE:
+            logger.warning("pyannote.audio未安装，说话者识别功能不可用")
+            self.config = config
+            self.model_name = config.get("model_name", "pyannote/speaker-diarization-3.1")
+            self.min_speakers = config.get("min_speakers", 1)
+            self.max_speakers = config.get("max_speakers", 10)
+            self.cache_dir = config.get("cache_dir", os.path.expanduser("~/.cache/huggingface"))
+            self.hf_token = config.get("hf_token", os.getenv("HF_TOKEN"))
+            self.pipeline = None
+            return
+            
         self.config = config
         self.model_name = config.get("model_name", "pyannote/speaker-diarization-3.1")
         self.min_speakers = config.get("min_speakers", 1)

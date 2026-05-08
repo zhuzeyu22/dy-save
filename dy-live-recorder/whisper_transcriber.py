@@ -2,8 +2,17 @@ import os
 import gc
 import logging
 from typing import List, Dict, Optional
-from faster_whisper import WhisperModel
-import torch
+
+try:
+    from faster_whisper import WhisperModel
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +29,10 @@ class WhisperTranscriber:
         self._load_model()
 
     def _load_model(self):
+        if not TORCH_AVAILABLE:
+            logger.warning("faster-whisper未安装，跳过模型加载")
+            return
+            
         try:
             compute_type = "float16" if self.device == "cuda" else "int8"
             self.model = WhisperModel(
