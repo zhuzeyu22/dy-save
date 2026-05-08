@@ -1,0 +1,36 @@
+douyin:
+  username: "智慧的大聪明"
+  room_url: ""  # 主播主页URL，如 https://live.douyin.com/123456
+  cookie: ""  # 抖音登录Cookie，需要登录后获取
+  check_interval: 300  # 检测间隔（秒），默认5分钟
+
+record:
+  sample_rate: 16000  # 采样率
+  channels: 1  # 声道数（单声道）
+  format: "wav"  # 音频格式
+  chunk_duration: 1800  # 分片时长（秒），默认30分钟
+  output_dir: "./recordings"  # 录音输出目录
+  retry_interval: 30  # 断流重连间隔（秒）
+  max_retry: 10  # 最大重试次数
+
+whisper:
+  model_size: "base"  # Whisper模型大小：tiny/base/small/medium/large
+  device: "auto"  # 推理设备：auto/cpu/cuda
+  language: "zh"  # 识别语言，默认中文
+
+diarization:
+  model_name: "pyannote/speaker-diarization-3.1"  # 声纹识别模型
+  min_speakers: 1  # 最少说话人数
+  max_speakers: 10  # 最多说话人数
+
+obsidian:
+  enabled: true  # 是否启用Obsidian同步
+  vault_path: ""  # Obsidian仓库路径，如 /path/to/vault
+  daily_notes_folder: "Daily"  # 每日笔记文件夹
+  output_dir: "./output"  # 转录输出目录
+
+logging:
+  level: "INFO"  # 日志级别：DEBUG/INFO/WARNING/ERROR
+  file: "./dy_monitor.log"  # 日志文件路径
+  max_size: 10485760  # 日志文件最大大小（字节）
+  backup_count: 5  # 保留的日志文件数量

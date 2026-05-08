@@ -1,0 +1,13 @@
+faster-whisper>=1.0.0
+pydub>=0.25.0
+pyannote.audio>=3.1.0
+pyannote.database>=5.1.0
+pyannote.metrics>=3.2.1
+pyannote.pipeline>=3.0.1
+httpx>=0.27.0
+python-dotenv>=1.0.0
+PyYAML>=6.0.1
+requests>=2.31.0
+aiohttp>=3.9.0
+python-dateutil>=2.8.2
+Jinja2>=3.1.0
