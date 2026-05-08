@@ -25,16 +25,30 @@ class DouyinAPI:
         if "live.douyin.com" in parsed.netloc:
             match = re.search(r'/(\d+)', parsed.path)
             if match:
-                return match.group(1)
+                room_id = match.group(1)
+                logger.info(f"从URL提取到room_id: {room_id}")
+                return room_id
+        
         try:
             response = httpx.get(room_url, headers=self.headers, timeout=10)
             html = response.text
+            
             room_id_match = re.search(r'"room_id"\s*:\s*"(\d+)"', html)
             if room_id_match:
                 return room_id_match.group(1)
-            sec_uid_match = re.search(r'"sec_uid"\s*:\s*"([^"]+)"', html)
+            
+            sec_uid_match = re.search(r'"sec_uid"\s*:\s*"([^"]{20,})"', html)
             if sec_uid_match:
-                return self.get_room_id_by_sec_uid(sec_uid_match.group(1))
+                sec_uid = sec_uid_match.group(1)
+                logger.info(f"从页面提取到sec_uid: {sec_uid[:30]}...")
+                room_id = self.get_room_id_by_sec_uid(sec_uid)
+                if room_id:
+                    return room_id
+            
+            url_match = re.search(r'live\.douyin\.com/(\d+)', html)
+            if url_match:
+                return url_match.group(1)
+                
         except Exception as e:
             logger.error(f"获取房间号失败: {e}")
         return None
