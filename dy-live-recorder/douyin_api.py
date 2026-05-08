@@ -28,6 +28,18 @@ class DouyinAPI:
                 room_id = match.group(1)
                 logger.info(f"从URL提取到room_id: {room_id}")
                 return room_id
+            match = re.search(r'/([a-zA-Z0-9_]+)/?', parsed.path)
+            if match:
+                unique_id = match.group(1)
+                if unique_id and not unique_id.replace('_', '').isdigit():
+                    logger.info(f"从URL提取到抖音号: {unique_id}")
+                    user_info = self.get_user_by_unique_id(unique_id)
+                    if user_info and user_info.get("room_id"):
+                        logger.info(f"用户 {user_info.get('nickname')} 正在直播，room_id: {user_info.get('room_id')}")
+                        return str(user_info["room_id"])
+                    elif user_info:
+                        logger.info(f"用户 {user_info.get('nickname')} 当前未在直播")
+                        return str(user_info.get("room_id", ""))
         
         try:
             response = httpx.get(room_url, headers=self.headers, timeout=10)
@@ -45,9 +57,12 @@ class DouyinAPI:
                 if room_id:
                     return room_id
             
-            url_match = re.search(r'live\.douyin\.com/(\d+)', html)
+            url_match = re.search(r'live\.douyin\.com/([a-zA-Z0-9_]+)', html)
             if url_match:
-                return url_match.group(1)
+                unique_id = url_match.group(1)
+                user_info = self.get_user_by_unique_id(unique_id)
+                if user_info:
+                    return str(user_info.get("room_id", ""))
                 
         except Exception as e:
             logger.error(f"获取房间号失败: {e}")
@@ -55,15 +70,49 @@ class DouyinAPI:
 
     def get_room_id_by_sec_uid(self, sec_uid: str) -> Optional[str]:
         try:
-            url = "https://api.tiktokv.com/aweme/v1/anchor/room/tab/info/"
-            params = {"sec_user_id": sec_uid}
+            url = "https://www.douyin.com/aweme/v1/web/user/profile/other/"
+            params = {
+                "device_platform": "web",
+                "aid": "6383",
+                "channel": "channel_pc_web",
+                "sec_user_id": sec_uid,
+                "publish_video_strategy_type": "2",
+            }
             response = httpx.get(url, headers=self.headers, params=params, timeout=10)
             data = response.json()
             if data.get("status_code") == 0:
-                room_info = data.get("anchor_room_list", [{}])[0]
-                return str(room_info.get("room_id", ""))
+                user = data.get("user", {})
+                room_id = user.get("room_id")
+                if room_id:
+                    return str(room_id)
+                logger.info(f"用户 {user.get('nickname', 'N/A')} 当前未在直播，room_id为空")
         except Exception as e:
             logger.error(f"通过sec_uid获取房间号失败: {e}")
+        return None
+
+    def get_user_by_unique_id(self, unique_id: str) -> Optional[Dict]:
+        try:
+            url = "https://www.douyin.com/aweme/v1/web/user/profile/other/"
+            params = {
+                "device_platform": "web",
+                "aid": "6383",
+                "channel": "channel_pc_web",
+                "unique_id": unique_id,
+                "publish_video_strategy_type": "2",
+            }
+            response = httpx.get(url, headers=self.headers, params=params, timeout=10)
+            data = response.json()
+            if data.get("status_code") == 0:
+                user = data.get("user", {})
+                return {
+                    "sec_uid": user.get("sec_uid"),
+                    "nickname": user.get("nickname"),
+                    "unique_id": user.get("unique_id"),
+                    "room_id": user.get("room_id"),
+                    "is_live": user.get("room_id") is not None,
+                }
+        except Exception as e:
+            logger.error(f"通过抖音号获取用户信息失败: {e}")
         return None
 
     def get_live_status(self, room_id: str) -> Dict[str, Any]:
